@@ -124,7 +124,7 @@ Agent 自主决定文章结构。常见的有效结构：
 
 ## Phase 3：全篇配图
 
-GPT Image 2 极便宜（$0.006/张），**每篇文章充分利用**，配图 5-8 张。
+GPT Image 2 极便宜（$0.006/张），**每篇文章充分利用**，配图 5-8 张。质量写死 `low`，无参数暴露。使用独立脚本 `skills/ai-image-gen/scripts/gen-image.py`。
 
 ### 图片角色
 
@@ -153,13 +153,15 @@ GPT Image 2 极便宜（$0.006/张），**每篇文章充分利用**，配图 5-
 生图 API 可能返回两种格式（URL 或 Base64），调用可能超时。代码必须同时处理：
 
 ```python
+# 使用独立生图脚本 skills/ai-image-gen/scripts/gen-image.py
+# quality 已写死 low，不暴露参数，无需手动指定
 from openai import OpenAI
 import base64, time, os
 
 client = OpenAI(api_key=os.environ["AIHUBMIX_API_KEY"], base_url="https://aihubmix.com/v1")
 
 def generate_with_retry(prompt, max_retries=2, retry_delay=3):
-    """生成图片，自动检测 URL/Base64 格式，支持重试"""
+    """生成图片，自动检测 URL/Base64 格式，支持重试。quality=low 写死。"""
     for attempt in range(max_retries + 1):
         try:
             resp = client.images.generate(

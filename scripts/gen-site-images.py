@@ -141,6 +141,8 @@ def main():
     parser.add_argument("--api-key", help="API key (or set AIHUBMIX_API_KEY env)")
     parser.add_argument("--start-from", type=int, default=0, help="Resume from index")
     parser.add_argument("--force", action="store_true", help="Force regenerate")
+    parser.add_argument("--limit", type=int, default=0,
+                       help="Generate only first N images (0=all). For Phase 2 sample generation.")
     parser.add_argument('--quality', default='low', choices=['low'],
                        help='QUALITY IS LOCKED TO LOW. medium/high BLOCKED to prevent cost spikes.')
     args = parser.parse_args()
@@ -177,7 +179,7 @@ def main():
         print("ERROR: No images in array")
         sys.exit(1)
 
-    print(f"Images: {len(images)}  Start: {args.start_from}  Output: {args.out}")
+    print(f"Images: {len(images)}  Start: {args.start_from}  Limit: {args.limit if args.limit else 'all'}  Output: {args.out}")
     if style_prefix:
         print(f"Style prefix: {style_prefix[:100]}...")
     if reference_base_url:
@@ -189,11 +191,17 @@ def main():
 
     manifest = load_manifest(args.manifest)
     success = 0
+    generated = 0  # count of actually generated (not skipped) images
     failed_entries = []
 
     for i, img in enumerate(images):
         if i < args.start_from:
             continue
+
+        # Check limit (counts only generated, not skipped)
+        if args.limit and generated >= args.limit:
+            print(f"Limit reached ({args.limit} generated). Stopping.")
+            break
 
         img_id = img["id"]
         output_path = out_dir / f"{img_id}.webp"
@@ -232,6 +240,7 @@ def main():
             save_manifest(manifest, args.manifest)
             print(f"  => OK ({fsize:,} bytes, {source})")
             success += 1
+            generated += 1
 
         except Exception as e:
             print(f"  => FAIL: {e}")

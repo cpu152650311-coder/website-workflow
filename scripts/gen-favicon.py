@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Generate favicon assets from a logo image (via GPT Image 2 text-to-image).
-Outputs: favicon.ico, apple-touch-icon.png, logo-512.png, logo-192.png
+Automatically removes background with AI (rembg) for transparent logo output.
+Outputs: favicon.ico, apple-touch-icon.png, logo-512.png, logo-192.png, logo-transparent.png
 
 Usage:
   python gen-favicon.py --prompt "minimalist abstract logo for a LED lighting brand, no text" --out ./generated
@@ -17,6 +18,14 @@ except ImportError:
     HAS_PIL = False
     print("ERROR: Pillow required. pip install Pillow")
     sys.exit(1)
+
+try:
+    from rembg import remove
+    HAS_REMBG = True
+except ImportError:
+    HAS_REMBG = False
+    print("WARNING: rembg not installed. Logo will have solid background.")
+    print("  Install: pip install rembg")
 
 GENERATIONS_URL = "https://api.inferera.com/v1/images/generations"
 
@@ -57,13 +66,36 @@ def generate_logo(prompt, api_key):
     raise ValueError(f"No image in response: {list(data.keys())}")
 
 
+def remove_background(source_bytes):
+    """Use AI (rembg) to remove background and return RGBA bytes."""
+    if not HAS_REMBG:
+        print("  Skipping background removal (rembg not installed)")
+        return source_bytes
+
+    print("  Removing background with AI (rembg)...")
+    input_img = Image.open(io.BytesIO(source_bytes))
+    if input_img.mode != "RGBA":
+        input_img = input_img.convert("RGBA")
+
+    output = remove(input_img)
+    buf = io.BytesIO()
+    output.save(buf, format="PNG")
+    result = buf.getvalue()
+    print(f"  Background removed: {len(source_bytes):,} → {len(result):,} bytes")
+    return result
+
+
 def generate_favicons(source_bytes, out_dir):
-    """Generate all favicon sizes from a source image."""
+    """Generate all favicon sizes from a transparent source image."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     img = Image.open(io.BytesIO(source_bytes))
     if img.mode not in ("RGB", "RGBA"):
+        img = img.convert("RGBA")
+
+    # Ensure RGBA for transparency preservation
+    if img.mode != "RGBA":
         img = img.convert("RGBA")
 
     assets = {
@@ -77,6 +109,7 @@ def generate_favicons(source_bytes, out_dir):
     for filename, sizes in assets.items():
         if filename == "favicon.ico":
             ico_path = out_dir / filename
+            # Create separate resized images for each ICO size
             img_16 = img.resize((16, 16), Image.LANCZOS)
             img_32 = img.resize((32, 32), Image.LANCZOS)
             img_16.save(ico_path, format="ICO", sizes=[(16, 16), (32, 32)])
@@ -96,6 +129,8 @@ def main():
     parser.add_argument("--source", help="Path to existing logo image (skip generation)")
     parser.add_argument("--out", default="./generated", help="Output directory")
     parser.add_argument("--api-key", help="API key (or set AIHUBMIX_API_KEY env)")
+    parser.add_argument("--no-remove-bg", action="store_true",
+                       help="Skip AI background removal (keep original background)")
     args = parser.parse_args()
 
     if not args.prompt and not args.source:
@@ -115,13 +150,23 @@ def main():
         source_bytes = source_path.read_bytes()
         print(f"Using existing logo: {args.source} ({len(source_bytes):,} bytes)")
     else:
-        print(f"Generating logo: {args.prompt[:120]}...")
-        source_bytes = generate_logo(args.prompt, api_key)
-        # Save source logo
-        logo_path = Path(args.out) / "logo.webp"
-        logo_path.parent.mkdir(parents=True, exist_ok=True)
-        logo_path.write_bytes(source_bytes)
-        print(f"Logo saved: {logo_path} ({len(source_bytes):,} bytes)")
+        # Prompt should instruct white/contrast background for clean removal
+        enhanced_prompt = f"{args.prompt}, isolated on pure white background, no shadows, clean edges"
+        print(f"Generating logo: {enhanced_prompt[:120]}...")
+        source_bytes = generate_logo(enhanced_prompt, api_key)
+        # Save raw logo
+        logo_raw_path = Path(args.out) / "logo-raw.webp"
+        logo_raw_path.parent.mkdir(parents=True, exist_ok=True)
+        logo_raw_path.write_bytes(source_bytes)
+        print(f"Raw logo saved: {logo_raw_path} ({len(source_bytes):,} bytes)")
+
+    # AI background removal
+    if not args.no_remove_bg:
+        source_bytes = remove_background(source_bytes)
+        # Save transparent logo
+        logo_transparent_path = Path(args.out) / "logo-transparent.png"
+        logo_transparent_path.write_bytes(source_bytes)
+        print(f"Transparent logo saved: {logo_transparent_path}")
 
     print("Generating favicon assets...")
     results = generate_favicons(source_bytes, args.out)

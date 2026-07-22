@@ -122,23 +122,74 @@ node_modules/
 
 ---
 
-## Phase 0 — 一句话展开为内容蓝图
+## Phase 0 — 一句话展开为内容蓝图 + 菜单选择
 
-用户只需给：**品类 + 品牌名**。Agent 按该品类出口最高标准自动填充所有内容。
+用户只需给：**品类 + 品牌名**。
 
-> ⚠️ **行业自适应**：以下示例表以 PCB 行业为演示。Agent 必须根据用户给定的品类，从模型知识库提取该品类的标准字段，**不套用 PCB 的参数/认证/工艺**。
+### 步骤 1：自动行业调研
+
+Agent 收到品类名后，**立即自动搜索该行业的完整信息**（不需用户提供资料）：
+
+```
+搜索方向：
+- 该品类的产品分类体系（一级/二级/三级分类）
+- 该品类的核心工艺/技术参数
+- 该品类的行业认证标准
+- 该品类的典型应用行业/下游领域
+- 该品类出口的标准交期/MOQ/包装方式
+```
+
+### 步骤 2：呈现菜单供用户选择
+
+Agent 调研完后，将结果整理为菜单，**让用户勾选**，不替用户做决定：
+
+```
+📋 页面结构方案 — 请确认或调整：
+
+一、能力分类（capabilities/）：
+  根据调研，{品类} 通常分为以下子类：
+  □ {子类A}
+  □ {子类B}  
+  □ {子类C}
+  □ {子类D}
+  □ 其他：___
+
+二、行业应用（industries/）：
+  该品类主要服务以下行业：
+  □ {行业1}
+  □ {行业2}
+  □ {行业3}
+  □ {行业4}
+  □ 其他：___
+
+三、设计方向：
+  品牌人格三轴定位（每轴选一端）：
+  ① 技术先锋型 ←→ 可靠传统型
+  ② 高端精密型 ←→ 规模产能型  
+  ③ 国际通路型 ←→ 工厂直营型
+  你的选择：___
+
+四、核心信任页（以下为必需，不可跳过）：
+  ☑ about ☑ factory ☑ quality ☑ shipping 
+  ☑ faq ☑ how-it-works ☑ design-guides ☑ projects
+  ☑ contact ☑ privacy ☑ terms ☑ 404
+```
+
+用户确认/调整后，Agent 产出 page-tree.json。
 
 ### 自动展开规则
 
 Agent 根据品类从模型知识库自动填充以下字段，**不询问用户、不等待厂商资料**：
 
-| 字段 | 填充策略 | 示例（PCB） | 其他品类示例 |
-|------|---------|-----------|------|
-| 产品参数 | 该品类全球最高工艺标准 | 2-32层、HDI任意层、3/3mil | LED: 光效/色温/CRI/光束角 — 注塑: 吨位/材料/公差/表面处理 |
-| 认证体系 | 该品类必备+加分认证 | ISO 9001, IATF 16949, UL, RoHS | LED: LM-80, TM-21, DLC, CE — 医疗器械: ISO 13485, FDA, CE MDR |
-| 产能数据 | 中型工厂标准 | 月产80,000㎡、8条SMT线 | LED: 月产50万颗/10条封装线 — 注塑: 80台注塑机/月产能200吨 |
-| 交期/样品/MOQ | 行业标准最优档 | 常规5-7天、打样3天、加急24h | 每个品类根据行业标准展开 |
-| 工艺/品质/应用 | 该品类完整产业链 | 沉金/OSP、AOI/飞针测试、汽车/医疗 | 每个品类根据行业知识库展开 |
+| 字段 | 填充策略 |
+|------|---------|
+| 产品参数 | 该品类全球最高工艺标准（搜索补充） |
+| 认证体系 | 该品类必备+加分认证（搜索补充） |
+| 产能数据 | 该品类中型工厂标准产能 |
+| 交期/MOQ | 该品类标准最优档 |
+| 工艺能力 | 该品类完整工艺链 |
+| 品质控制 | 该品类标准QC流程 |
+| 应用领域 | 该品类典型下游行业 |
 
 **输出文件**：
 - `content-blueprint.md`：完整的业务内容字段，Phase 1 设计时直接引用。
@@ -172,15 +223,7 @@ blog/index.html         → 博客列表（框架，文章由blog-workflow生成
 
 #### 第 2 层：能力页（按品类自动展开，2-3 层深）
 
-根节点 `capabilities/` 为 hub 页。Agent 根据品类拆分子能力：
-
-| 品类 | 典型子能力展开 |
-|------|-------------|
-| PCB | pcb-fabrication/{standard,quick-turn,impedance-control,back-drilling} / pcb-types/{aluminum,ceramic,flex,hdi,heavy-copper,high-speed,rf,rigid-flex} |
-| PCBA | pcba-assembly/{smt,through-hole,bga-qfn,conformal-coating,functional-testing} / box-build/{enclosure,cable-harness,testing} |
-| LED | led-components/{smd,high-power,cob,filament} / custom-solutions/{spectrum-tuning,waterproofing,smart-control} / manufacturing/{die-bonding,phosphor-coating,binning-testing} |
-| 注塑 | injection-molding/{thermoplastic,thermoset,overmolding,insert-molding} / mold-making/{prototype,production,family-molds} / finishing/{pad-printing,laser-etching,hot-stamping} |
-| 其他品类 | Agent 根据品类知识库自主展开，保持 2-3 层深度 |
+根节点 `capabilities/` 为 hub 页。Agent 根据 Phase 0 步骤 2 的用户选择拆分子能力，保持 2-3 层深度。
 
 #### 第 3 层：行业页（从"应用领域"字段展开）
 
@@ -219,27 +262,15 @@ welcome/index.html     → Google Ads 独立着陆页
 
 ### 步骤
 
-#### 1. 品类细分 → 视觉线索
+#### 1. 品类视觉线索（搜索驱动，非预设）
 
-从 brief 提取具体产品品类，映射视觉线索（非固定配色，是意象方向）：
+Agent 根据 Phase 0 的行业调研结果，从该品类的视觉特征中提取意象方向：
 
-| 品类 | 视觉意象 | 典型色彩方向 |
-|------|---------|:--:|
-| LED/照明 | 光效、色温、光束 | 暗底+暖光 |
-| 电池/储能/电源 | 能量、安全、耐用 | 蓝/绿/银 |
-| PCB/PCBA/电子 | 精密、层叠、微型 | 深绿/金/铜 |
-| IoT/无线/模块 | 连接、网络、微型 | 白/蓝/灰 |
-| 医疗/器械 | 洁净、信任、生命 | 白/蓝/淡灰 |
-| IC/半导体/芯片 | 微观、极致精密 | 黑/金/银 |
-| 注塑/模具 | 材料、成型、精度 | 银/蓝/灰 |
-| 纺织/服装 | 质感、面料、工艺 | 米白/棕/深蓝 |
-| 家具/家居 | 空间、材质、生活 | 暖木/灰/绿 |
-| 包装/印刷 | 色彩、质感、品牌 | 白/彩/黑 |
-| 新能源/户外 | 未来、速度、自然 | 深蓝/绿/橙 |
-| 工业/机箱 | 坚固、散热、规模 | 炭灰/橙/蓝 |
-| 化工/材料 | 分子、纯净、转化 | 白/蓝/绿 |
+- 该品类的产品/材料/工艺的视觉特征是什么？
+- 该品类标杆品牌的常用配色是什么？
+- 该品类海外买家对视觉的期待是什么？
 
-> ⚠️ 此表为参考起点。Agent 根据用户实际品类选择或扩展。不在表中的品类，Agent 从模型知识库推断视觉方向。
+**禁止套用任何预设的品类→色彩映射表。** 每个站点都从零调研。
 
 #### 2. 品牌人格 → 设计基调
 
@@ -262,7 +293,7 @@ welcome/index.html     → Google Ads 独立着陆页
 
 同一品类、同一人格容易产出相似设计。Agent 必须主动做以下差异化决策（至少 3 项）：
 
-- [ ] 主色：从品类色彩方向中选**一个非默认**的（如 PCB 不选深绿而选铜金为主、绿为辅）
+- [ ] 主色：从该品类的常见色中选**一个非默认**的（如该品类主流用蓝色，则选其对比色或金属色为主）
 - [ ] 布局系统：首页首个 section 的类型与上一个站点不同（全屏图 / 图文分屏 / 卡片网格 / 大标题居中）
 - [ ] 字体个性：标题字体在 serif/sans/mono 之间切换感受
 - [ ] 密度节奏：内容密度在「稀疏留白」与「信息密集」之间制造差异
@@ -356,9 +387,9 @@ Phase 0 已产出 `page-tree.json`（4 层页面树）。Phase 1 在此基础上
 - 确定每页的板块组成（参考下方"页面骨架模式"）
 - 每页预分配：标题/H1/meta description/og:title/og:description/og:image
 
-##### 页面骨架模式（从 huaxingpcba 实战提炼）
+##### 页面骨架模式（结构参考，非视觉模板）
 
-Agent 在这些骨架基础上自主填充，不逐行复制。每种页面类型有不同的说服逻辑：
+以下为 B2B 外贸站的通用页面结构模式。Agent 在这些骨架基础上**自主设计视觉呈现**，不逐行复制。每种页面类型有不同的说服逻辑：
 
 | 页面类型 | 骨架结构 | 说服逻辑 |
 |----------|---------|---------|
@@ -473,7 +504,7 @@ Sitemap: https://{domain}/sitemap.xml
 
 ### CSS 反模式黑名单（硬性禁止）
 
-从 huaxingpcba 97页建设过程中踩坑提炼。Agent 写 CSS 时必须遵守：
+从实战踩坑提炼。Agent 写 CSS 时必须遵守：
 
 | ❌ 禁止 | ✅ 正确做法 | 根因 |
 |---------|-----------|------|
@@ -594,7 +625,7 @@ document.getElementById('inquiryForm').addEventListener('submit', async (e) => {
 - 每页的 hero / sub-hero / split-section / CTA 背景图全部使用不同文件
 - **例外**：cta-bg 角色的纹理背景可在不同页面复用（仅限此角色）
 - Phase 5 审计检测：同一文件被 ≥2 个 `<img>` 引用 → **FAIL**
-- huaxingpcba 踩坑：`blog-cta-turnkey.webp` 被 6 个页面复用，`modal-pcba-showcase.webp` 被 5 个页面复用 → 强制重构
+- 踩坑：同一图片文件曾被 6 个页面复用、弹窗图被 5 个页面复用 → 强制重构，零复用规则由此而来
 
 ### 生图脚本
 
@@ -678,7 +709,7 @@ python gen-product-shots.py --config product-shots.json --out ./shots
 ```
 /about/index.html
 /capabilities/index.html
-/capabilities/pcb-fabrication/index.html
+/capabilities/{subcategory}/index.html
 /industries/index.html
 /contact/index.html
 /blog/index.html
@@ -1028,7 +1059,7 @@ curl -s -o /dev/null -w "%{http_code}" "https://<project>.pages.dev/nonexistent-
 - **禁止 `{brand}` 占位符残留** — 每页 title/og/copyright/JSON-LD 必须使用真实品牌名
 - **版权区格式强制**：`© 2026 {Brand Name} — {City}, {Country}`（根据厂商实际所在地填写）
 - **语言**：全站英文（国际 B2B 通路），除非厂商要求中英双语
-- **品牌名 + 品类名**同时出现在 title 中，例：`{Brand Name} | Professional {Category} Manufacturing & Assembly`
+- **品牌名 + 品类名**同时出现在 title 中，例：`{Brand Name} | Professional {Category}`（具体格式由 Agent 根据品类决定）
 
 ---
 
